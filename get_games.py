@@ -2,12 +2,14 @@
 get_games.py: This script is intended as a test for collecting game data for a
     given day.
 '''
+import calendar
+import multiprocessing as mp
 import os
 import re
-import requests
-import shutil
 
 from bs4 import BeautifulSoup
+import requests
+
 
 class GetGames(object):
     '''
@@ -21,10 +23,36 @@ class GetGames(object):
         self.home = 'http://gd2.mlb.com/components/game/mlb/'
 
     def get_year(self, year):
-        pass
+        '''
+        Given a year in the form YYYY, collect all of the games that took place
+        during that year.
+
+        Args:
+            year (string): Year in format 'YYYY'.
+        '''
+        year = str(year)
+        self.year = year
+        for month in range(1, 13):
+            month = format(month, '02d')
+            self.month = month
+            month = year + '-' + month
+            self.get_month(month)
 
     def get_month(self, month):
-        pass
+        '''
+        Given a date in the form 'YYYY-MM', collect all of the games that took
+        place during that month.
+
+        Args:
+            month (string): Date in the format 'YYYY-MM'.
+        '''
+        date = month.split('-')
+        if not self.year:
+            self.year = date[0]
+            self.month = date[1]
+        days = calendar.monthrange(int(self.year), int(self.month))[1]
+        for day in range(1, days + 1):
+            self.get_day('-'.join(date) + '-' + format(day, '02d'))
 
     def get_day(self, date):
         '''
@@ -35,8 +63,9 @@ class GetGames(object):
             date (string): Date in the format 'YYYY-MM-DD' (ISO 8601 format).
         '''
         date = date.split('-')
-        self.year = date[0]
-        self.month = date[1]
+        if not self.month:
+            self.year = date[0]
+            self.month = date[1]
         day = date[2]
         url = self.home + 'year_{}/month_{}/day_{}/'.format(
             self.year, self.month, day
@@ -44,10 +73,11 @@ class GetGames(object):
         day_page = requests.get(url)
         day_soup = BeautifulSoup(day_page.text, 'html.parser')
         games = day_soup.find_all('a', text=re.compile('gid\w*/'))
-        games = [game['href'] for game in games]
-        for game in games:
-            game_url = url + game
-            self.get_game(game_url)
+        games = [url + game['href'] for game in games]
+        # for game in games:
+        #     game_url = url + game
+        #     self.get_game(game_url)
+        self.parallel_get_games(games)
 
     @staticmethod
     def get_game(game_url):
@@ -61,9 +91,18 @@ class GetGames(object):
         players = BeautifulSoup(players.text, 'lxml')
         innings = requests.get(game_url + 'inning/inning_all.xml')
         innings = BeautifulSoup(innings.text, 'lxml')
-        directory = '/'.join(game_url.split('/')[-5:-2])
+        directory = '/'.join(game_url.split('/')[-5:])
         os.makedirs(directory, mode=0o777, exist_ok=True)
         with open(directory + '/players.xml', 'w') as file_obj:
             file_obj.write(players.prettify())
         with open(directory + '/inning_all.xml', 'w') as file_obj:
             file_obj.write(innings.prettify())
+
+    def parallel_get_games(self, games):
+        '''
+        Method for getting a list of games using all available processors.
+        '''
+        pool = mp.Pool()
+        pool.map_async(self.get_game, games)
+        pool.close()
+        pool.join()

@@ -241,7 +241,8 @@ class GetGames(object):
     #     for thread in threads:
     #         thread.join()
 
-    def _empty_queue(self, queue, func):
+    @staticmethod
+    def _empty_queue(queue, func):
         """
         Retrieve data for all games in self.Tasks.
 

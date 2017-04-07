@@ -191,6 +191,25 @@ class GetGames(object):
             with open(directory + '/inning_all.xml', 'w') as innings_obj:
                 innings_obj.write(innings.prettify())
 
+    def _get_inning(self, session_num):
+        """
+        Given an inning url retrieve the data for that inning.
+
+        Args:
+            session_num (int): Integer representing the session number to use
+                for making requests.
+        """
+        while True:
+            inning_url = self.inning_tasks.get()
+            if not inning_url:
+                break
+            session = self.sessions[session_num]
+            inning = session.get(inning_url)
+            inning = BeautifulSoup(inning, 'lxml')
+            filename = '/'.join(inning_url.split('/')[6:])
+            with open(filename, 'w') as inning_obj:
+                inning_obj.write(inning.prettify())
+
     def _queue_innings(self, game_url, session):
         """
         Given a game_url retrieve the links for the individual innings.

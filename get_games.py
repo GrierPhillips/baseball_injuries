@@ -36,6 +36,7 @@ class GetGames(object):
         self.month = None
         self.home = 'http://gd2.mlb.com/components/game/mlb/'
         self.tasks = mp.Queue()
+        self.inning_tasks = mp.Queue()
         # self.requests = 0
 
     def setup_sessions(self):
@@ -190,6 +191,23 @@ class GetGames(object):
             with open(directory + '/inning_all.xml', 'w') as innings_obj:
                 innings_obj.write(innings.prettify())
 
+    def _queue_innings(self, game_url, session):
+        """
+        Given a game_url retrieve the links for the individual innings.
+
+        Collect all of the individual inning links for a given game and place
+        them into a queue for use with multiprocessing.
+
+        Args:
+            game_url (string): String address for an individual game.
+            session (requets.sessions.Session): Tor session for retrieving game
+                anonymously.
+        """
+        innings = session.get(game_url)
+        soup = BeautifulSoup(innings.text, 'html.parser')
+        innings = soup.find('a', text=re.compile('inning_\d+.xml'))
+        for inning in innings:
+            self.inning_tasks.put(inning.text)
 
     # def get_games_concurrent(self, games):
     #     threads = []

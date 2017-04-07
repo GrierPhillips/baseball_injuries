@@ -166,7 +166,7 @@ class GetGames(object):
 
     def _get_game(self, session_num):
         """
-        Given a game_url retrieve the data for all players and innings.
+        Retrieve game_url from queue and retrieve its data.
 
         Args:
             session_num (int): Integer representing the session number to use
@@ -181,12 +181,15 @@ class GetGames(object):
             players = BeautifulSoup(players, 'lxml')
             innings = session.get(game_url + 'inning/inning_all.xml')
             innings = BeautifulSoup(innings, 'lxml')
-            directory = '/'.join(game_url.split('/')[-5:])
+            if 'Not Found' in innings.find('p').text:
+                self._queue_innings(game_url + 'inning/', session)
+            directory = '/'.join(game_url.split('/')[6:])
             os.makedirs(directory, mode=0o777, exist_ok=True)
-            with open(directory + '/players.xml', 'w') as file_obj:
-                file_obj.write(players.prettify())
-            with open(directory + '/inning_all.xml', 'w') as file_obj:
-                file_obj.write(innings.prettify())
+            with open(directory + '/players.xml', 'w') as players_obj:
+                players_obj.write(players.prettify())
+            with open(directory + '/inning_all.xml', 'w') as innings_obj:
+                innings_obj.write(innings.prettify())
+
 
     # def get_games_concurrent(self, games):
     #     threads = []

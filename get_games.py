@@ -241,18 +241,23 @@ class GetGames(object):
     #     for thread in threads:
     #         thread.join()
 
-    def _get_games(self):
+    def _empty_queue(self, queue, func):
         """
         Retrieve data for all games in self.Tasks.
 
         Using all available processes, retrieve and store inning and player
         data for all games in the tasks Queue.
+
+        Args:
+            queue (multiprocessing.queues.Queue): Queue holding objects to be
+                processed. Either games or innings.
+            func (function): Function to be used to process queue
         """
         for _ in range(mp.cpu_count()):
-            self.tasks.put(None)
+            queue.put(None)
         workers = []
         for _ in range(mp.cpu_count()):
-            worker = mp.Process(target=self._get_game, args=(_,))
+            worker = mp.Process(target=func, args=(_,))
             workers.append(worker)
             worker.start()
         for worker in workers:
@@ -265,4 +270,5 @@ class GetGames(object):
         curr_year = int(time.strftime('%Y', tuple=None))
         for year in range(2007, curr_year + 1):
             self.get_year(str(year))
-            self._get_games()
+            self._empty_queue(self.tasks, self._get_game)
+            self._empty_queue(self.inning_tasks, self._get_inning)
